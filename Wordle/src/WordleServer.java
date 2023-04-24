@@ -16,6 +16,8 @@ import com.google.gson.*;
  */
 public class WordleServer {
 
+    private static int connectedUsers = 0; // per scopi di stampe
+    
     // Percorso del file di configurazione del server
     public static final String CONFIG = "src/server.properties";
 
@@ -25,7 +27,7 @@ public class WordleServer {
     public static int TIMEOUT;
     
     private static String secretWord;
-    private static ConcurrentHashMap<String, User> users;
+    private static ConcurrentHashMap<String, User> users = new ConcurrentHashMap<String, User>();
             
     /**
      * Metodo che legge il file di configurazione del server
@@ -48,9 +50,16 @@ public class WordleServer {
 
     public static void readUsers() {
         users = new ConcurrentHashMap<String, User>();
-        
+        // TODO
     }
     
+    /**
+    * Aggiunge un nuovo utente alla mappa <Utente, Username>
+    *
+    * @param username il nome utente del nuovo utente
+    * @param password la password del nuovo utente
+    * @return una stringa che indica l'esito dell'operazione 
+    */ 
     public static String addUser(String username, String password) {
         if (password.equals(""))
             return "EMPTY";
@@ -60,6 +69,14 @@ public class WordleServer {
         User user = new User(username, password);
         users.put(username, user);
         return "SUCCESS";        
+    }
+    
+    public static User getUser(String username) {
+        return users.get(username);
+    }
+    
+    public static void updateUser(String username, User user) {
+        users.replace(username, user);
     }
     
     public static void main(String args[]) {
@@ -72,11 +89,11 @@ public class WordleServer {
         }
 
         try (ServerSocket welcomeSocket = new ServerSocket(PORT)) {
-            welcomeSocket.setSoTimeout(TIMEOUT);
+            // welcomeSocket.setSoTimeout(TIMEOUT);
             System.out.println("Server attivo, ascolto sulla porta " + PORT);
             ExecutorService pool = Executors.newCachedThreadPool();
             while (true) {
-                pool.execute(new ClientHandler(welcomeSocket.accept()));
+                pool.execute(new ClientHandler(welcomeSocket.accept(), connectedUsers++));
             }
         } catch (IOException ex) {
             ex.printStackTrace();

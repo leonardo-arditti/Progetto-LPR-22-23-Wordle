@@ -1,3 +1,4 @@
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -22,10 +23,10 @@ public class WordleClient {
     private static Socket clientSocket;
     private static PrintWriter out;
     private static Scanner in;
-    
-    private static User user;
-    private static boolean logged_out = false;
-    
+
+    private static User currentUser = new User();
+    private static boolean logged_out = false; // da aggiornare in logout
+
     /**
      * Metodo che legge il file di configurazione del client
      *
@@ -45,26 +46,25 @@ public class WordleClient {
     }
 
     private static void register(String username, String password) {
-        
-        if (user.isLoggedIn()) {
+        if (currentUser.isLoggedIn()) {
             // Non consento a un utente già loggato di registrarsi nuovamente
             System.err.println("Impossibile registrarsi nuovamente una volta loggati.");
             return;
         }
-        
+
         // Uso la virgola come delimitatore
-        out.println("REGISTER"+","+username+","+password);
+        out.println("REGISTER" + "," + username + "," + password);
         String response = in.nextLine();
-        
-        switch(response) {
+
+        switch (response) {
             case "SUCCESS":
                 System.out.println("Registrazione avvenuta con successo. Procedere con il login.");
                 break;
-                
+
             case "DUPLICATE":
-                System.err.println("Errore, l'username scelto per la registrazione è già stato utilizzato.");
+                System.err.println("Errore, l'username scelto per la registrazione è già stato registrato.");
                 break;
-                
+
             case "EMPTY":
                 System.err.println("Errore, la password non può essere vuota.");
                 break;
@@ -72,31 +72,60 @@ public class WordleClient {
     }
 
     private static void login(String username, String password) {
-        
-        if (user.isLoggedIn()) {
+        if (currentUser.isLoggedIn()) {
             // Non consento a un utente già loggato di loggarsi nuovamente
             System.err.println("Impossibile loggarsi nuovamente una volta loggati.");
             return;
         }
-        
-        out.println("LOGIN"+","+username+","+password);
+
+        out.println("LOGIN" + "," + username + "," + password);
         String response = in.nextLine();
-        
-        switch (response){
+
+        switch (response) {
             case "SUCCESS":
-                System.out.println("Bentornato "+username+"!");
-                user = new User(username, password);
-                user.setLoggedIn();
+                System.out.println("Bentornato " + username + "! Login avvenuto con successo.");
+                currentUser = new User(username, password);
+                currentUser.setLoggedIn();
                 break;
-                
-            case "WRONG_CREDENTIALS":
-                System.err.println("Username/password scorretti, riprovare.");
-                
+
+            case "NON_EXISTING_USER":
+                System.err.println("L'username specificato non corrisponde a un utente registrato, riprovare.");
+                break;
+
+            case "WRONG_PASSWORD":
+                System.err.println("Password scorretta, riprovare.");
+                break;
+
+            case "ALREADY_LOGGED":
+                System.err.println("L'utente " + username + " è già loggato.");
+                break;
         }
     }
 
-    private static void handleCmd(String cmd) {
-        String[] parts = cmd.split("\\("); // Divide la stringa in base alla parentesi aperta
+    private static void logout(String username) {
+        if (!currentUser.isLoggedIn()) {
+            System.err.println("E' possibile fare il logout solo una volta loggati.");
+            return;
+        }
+
+        out.println("LOGOUT" + "," + username);
+        String response = in.nextLine();
+
+        switch (response) {
+            case "ERROR":
+                System.err.println("Errore nell'operazione richiesta, riprovare.");
+                break;
+                
+            case "SUCCESS":
+                currentUser = new User();
+                logged_out = true;
+                System.out.println("Disconnessione avvenuta con successo, uscita dal programma in corso.");
+                break;
+        }
+    }
+
+    private static void handleCommand(String command) {
+        String[] parts = command.split("\\("); // Divide la stringa in base alla parentesi aperta
         String commandName = parts[0]; // Il nome del comando è la prima sottostringa
         String credentials;
         String username;
@@ -108,7 +137,7 @@ public class WordleClient {
                 String[] registerParts = credentials.split(","); // Divide le credenziali in base alla virgola
                 username = registerParts[0]; // Il primo elemento è il nome utente
                 password = registerParts[1]; // Il secondo elemento è la password
-                System.out.println(username + " " + password);
+                // System.out.println(username + " " + password);
                 register(username, password);
                 break;
 
@@ -118,6 +147,11 @@ public class WordleClient {
                 username = loginParts[0]; // Il primo elemento è il nome utente
                 password = loginParts[1]; // Il secondo elemento è la password
                 login(username, password);
+                break;
+
+            case "logout":
+                username = parts[1].substring(0, parts[1].length() - 1);
+                logout(username);
                 break;
 
             case "playWORDLE":
@@ -137,9 +171,9 @@ public class WordleClient {
 
             case "help":
                 break;
-                
+
             default:
-                System.out.printf("Comando %s non riconosciuto, riprovare\r\n", commandName);
+                System.err.printf("Comando %s non riconosciuto, riprovare\r\n", commandName);
         }
     }
 
@@ -147,7 +181,7 @@ public class WordleClient {
         try {
             clientSocket = new Socket(HOSTNAME, PORT);
             out = new PrintWriter(clientSocket.getOutputStream(), true);
-            in = new Scanner(clientSocket.getInputStream()); 
+            in = new Scanner(clientSocket.getInputStream());
         } catch (IOException ex) {
             System.err.println("Errore nella connessione al server.");
             ex.printStackTrace();
@@ -175,15 +209,16 @@ public class WordleClient {
             ex.printStackTrace();
         }
 
-        
         Scanner userInput = new Scanner(System.in);
 
-        System.out.println("Benvenuto su Wordle! Digita help per una lista dei comandi disponbili.");
+        System.out.println("[ Connesso al server " + clientSocket.getInetAddress() + " sulla porta " + clientSocket.getPort() + " ]");
+        System.out.println("Benvenuto su Wordle! Digita un comando o help per una lista di tutti i comandi disponbili.");
         while (!logged_out) {
             System.out.print(">");
-            String cmd = userInput.nextLine();
+            String command = userInput.nextLine();
 
-            handleCmd(cmd);
+            handleCommand(command);
         }
+        closeConnection();
     }
 }

@@ -25,11 +25,27 @@ public class User {
         this.is_logged = false;
     }
     
+    public User() {
+        this.is_logged = false;
+    }
+    
     public boolean isLoggedIn() {
         return this.is_logged;
     }
     
     public void setLoggedIn() {
         this.is_logged = true;
+    }
+    
+    public void setNotLoggedIn() {
+        this.is_logged = false;
+    }
+    
+    public String getUsername() {
+        return username;
+    }
+    
+    public String getPassword() {
+        return this.password;
     }
 }
