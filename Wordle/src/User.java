@@ -11,6 +11,7 @@ public class User {
     private int[] guess_distribution;
     
     private boolean has_played;
+    private boolean is_logged;
 
     public User(String username, String password) {
         this.username = username;
@@ -21,5 +22,14 @@ public class User {
         this.longest_winstreak = 0;
         this.guess_distribution = new int[12];
         this.has_played = false;
+        this.is_logged = false;
+    }
+    
+    public boolean isLoggedIn() {
+        return this.is_logged;
+    }
+    
+    public void setLoggedIn() {
+        this.is_logged = true;
     }
 }
