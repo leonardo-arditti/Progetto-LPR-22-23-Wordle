@@ -68,7 +68,7 @@ public class ClientHandler implements Runnable {
                             out.println("ERROR");
                         } else {
                             connectedUser.setNotLoggedIn();
-                            WordleServer.updateUser(username, connectedUser);
+                            WordleServer.updateUser(connectedUser); 
                             out.println("SUCCESS");
                             logged_out = true;
                             break;
