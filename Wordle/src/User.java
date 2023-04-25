@@ -61,6 +61,34 @@ public class User {
         return this.password;
     }
 
+    public int getTotal_played_games() {
+        return total_played_games;
+    }
+
+    public int getTotal_games_won() {
+        return total_games_won;
+    }
+
+    public int getCurrent_winstreak() {
+        return current_winstreak;
+    }
+
+    public int getLongest_winstreak() {
+        return longest_winstreak;
+    }
+
+    public ArrayList<Integer> getGuess_distribution() {
+        return guess_distribution;
+    }
+
+    public boolean Has_played() {
+        return has_played;
+    }
+
+    /* public boolean isIs_logged() {
+        return is_logged;
+    } */
+    
     @Override
     public String toString() {
         return "User{" + "username=" + username + ", password=" + password + ", total_played_games=" + total_played_games + ", total_games_won=" + total_games_won + ", current_winstreak=" + current_winstreak + ", longest_winstreak=" + longest_winstreak + ", guess_distribution=" + guess_distribution + ", has_played=" + has_played + ", is_logged=" + is_logged + '}';

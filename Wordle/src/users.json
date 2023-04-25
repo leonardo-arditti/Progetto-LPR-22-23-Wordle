@@ -1,14 +1,40 @@
 [
 	{
-			"username":"leo",
-			"password":"123",
-			"total_played_games":1,
-			"total_games_won":0,
-			"current_winstreak":0,
-			"longest_winstreak":1,
-			"has_played":true,
-			"guess_distribution": [
-				1
-			]
+		"username": "luca",
+		"password": "test",
+		"total_played_games": 5,
+		"total_games_won": 0,
+		"current_winstreak": 0,
+		"longest_winstreak": 0,
+		"has_played": false,
+		"guess_distribution": [
+			1,
+			2,
+			3,
+			4,
+			5
+		]
+	},
+	{
+		"username": "leo",
+		"password": "123",
+		"total_played_games": 1,
+		"total_games_won": 0,
+		"current_winstreak": 0,
+		"longest_winstreak": 1,
+		"has_played": true,
+		"guess_distribution": [
+			1
+		]
+	},
+	{
+		"username": "pippo",
+		"password": "1",
+		"total_played_games": 0,
+		"total_games_won": 0,
+		"current_winstreak": 0,
+		"longest_winstreak": 0,
+		"has_played": false,
+		"guess_distribution": []
 	}
 ]

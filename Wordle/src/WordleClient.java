@@ -45,7 +45,12 @@ public class WordleClient {
         }
     }
 
-    private static void register(String username, String password) {
+    private static void register(String username, String password, boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+
         if (currentUser.isLoggedIn()) {
             // Non consento a un utente già loggato di registrarsi nuovamente
             System.err.println("Impossibile registrarsi nuovamente una volta loggati.");
@@ -71,7 +76,12 @@ public class WordleClient {
         }
     }
 
-    private static void login(String username, String password) {
+    private static void login(String username, String password, boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+
         if (currentUser.isLoggedIn()) {
             // Non consento a un utente già loggato di loggarsi nuovamente
             System.err.println("Impossibile loggarsi nuovamente una volta loggati.");
@@ -102,7 +112,12 @@ public class WordleClient {
         }
     }
 
-    private static void logout(String username) {
+    private static void logout(String username, boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+
         if (!currentUser.isLoggedIn()) {
             System.err.println("E' possibile fare il logout solo una volta loggati.");
             return;
@@ -115,7 +130,7 @@ public class WordleClient {
             case "ERROR":
                 System.err.println("Errore nell'operazione richiesta, riprovare.");
                 break;
-                
+
             case "SUCCESS":
                 currentUser = new User();
                 logged_out = true;
@@ -128,30 +143,42 @@ public class WordleClient {
         String[] parts = command.split("\\("); // Divide la stringa in base alla parentesi aperta
         String commandName = parts[0]; // Il nome del comando è la prima sottostringa
         String credentials;
-        String username;
-        String password;
+        String username = "";
+        String password = "";
+        boolean malformed = false;
 
         switch (commandName) {
             case "register":
                 credentials = parts[1].substring(0, parts[1].length() - 1); // Estrae le credenziali dal resto della stringa, rimuovendo la parentesi chiusa finale
                 String[] registerParts = credentials.split(","); // Divide le credenziali in base alla virgola
-                username = registerParts[0]; // Il primo elemento è il nome utente
-                password = registerParts[1]; // Il secondo elemento è la password
+                if (registerParts.length != 2) {
+                    malformed = true;
+                } else {
+                    username = registerParts[0]; // Il primo elemento è il nome utente
+                    password = registerParts[1]; // Il secondo elemento è la password
+                }
                 // System.out.println(username + " " + password);
-                register(username, password);
+                register(username, password, malformed);
                 break;
 
             case "login":
                 credentials = parts[1].substring(0, parts[1].length() - 1); // Estrae le credenziali dal resto della stringa, rimuovendo la parentesi chiusa finale
                 String[] loginParts = credentials.split(","); // Divide le credenziali in base alla virgola
-                username = loginParts[0]; // Il primo elemento è il nome utente
-                password = loginParts[1]; // Il secondo elemento è la password
-                login(username, password);
+                if (loginParts.length != 2) {
+                    malformed = true;
+                } else {
+                    username = loginParts[0]; // Il primo elemento è il nome utente
+                    password = loginParts[1]; // Il secondo elemento è la password
+                }
+                login(username, password, malformed);
                 break;
 
             case "logout":
                 username = parts[1].substring(0, parts[1].length() - 1);
-                logout(username);
+                if (username == null) {
+                    malformed = true;
+                }
+                logout(username, malformed);
                 break;
 
             case "playWORDLE":
