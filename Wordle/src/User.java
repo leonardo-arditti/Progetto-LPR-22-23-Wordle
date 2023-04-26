@@ -84,10 +84,36 @@ public class User {
     public boolean Has_played() {
         return has_played;
     }
+    
+    public void setHas_not_played() {
+        has_played = false;
+    }
 
+    public void setHas_played() {
+        has_played = true;
+    }
+    
     /* public boolean isIs_logged() {
         return is_logged;
     } */
+    
+    public void addWin(int numTries) {
+        current_winstreak++;
+        
+        if (current_winstreak > longest_winstreak)
+            longest_winstreak = current_winstreak;
+        
+        total_played_games++;
+        total_games_won++;
+        
+        guess_distribution.add(numTries);
+    }
+    
+    public void addLose(int numTries) {
+        current_winstreak = 0;
+        
+        total_played_games++;
+    }
     
     @Override
     public String toString() {

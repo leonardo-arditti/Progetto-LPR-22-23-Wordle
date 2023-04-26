@@ -18,13 +18,14 @@
 	{
 		"username": "leo",
 		"password": "123",
-		"total_played_games": 1,
-		"total_games_won": 0,
-		"current_winstreak": 0,
+		"total_played_games": 2,
+		"total_games_won": 1,
+		"current_winstreak": 1,
 		"longest_winstreak": 1,
-		"has_played": true,
+		"has_played": false,
 		"guess_distribution": [
-			1
+			1,
+			2
 		]
 	},
 	{

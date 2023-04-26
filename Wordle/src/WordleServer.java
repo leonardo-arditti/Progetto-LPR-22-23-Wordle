@@ -11,11 +11,19 @@ import java.util.concurrent.Executors;
 
 import com.google.gson.stream.JsonReader; // in particolare si userà la GSON Streaming API per sfruttare il caricamento parziale di parti di oggetti di grandi dimensioni
 import com.google.gson.stream.JsonWriter;
+import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -37,11 +45,15 @@ public class WordleServer {
     public static String VOCABULARYFILE;
     public static int TIMEOUT;
     public static String USER_DB;
+    public static int WORD_UPDATE_DELAY;
 
-    private static String secretWord;
-    private static ConcurrentHashMap<String, User> users = new ConcurrentHashMap<String, User>();
-    private static ConcurrentHashMap<String, Boolean> usersThatHaveAlreadyPlayed = new ConcurrentHashMap<String, Boolean>();
+    private static String secretWord; // TODO
+
+    private static ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
+    // private static ConcurrentHashMap<String, Boolean> usersThatHaveAlreadyPlayed = new ConcurrentHashMap<String, Boolean>(); // possibile rimozione?
     // private static AtomicBoolean shutdown = new AtomicBoolean(false);
+    private static List<String> wordList = new ArrayList<>();
+    private static Set<String> extractedWords = new HashSet<>();
 
     /**
      * Metodo che legge il file di configurazione del server
@@ -57,10 +69,74 @@ public class WordleServer {
             VOCABULARYFILE = prop.getProperty("VOCABULARYFILE");
             TIMEOUT = Integer.parseInt(prop.getProperty("TIMEOUT"));
             USER_DB = prop.getProperty("USER_DB");
+            WORD_UPDATE_DELAY = Integer.parseInt(prop.getProperty("WORD_UPDATE_DELAY"));
         } catch (IOException ex) {
             System.err.println("Errore durante la lettura del file di configurazione.");
             ex.printStackTrace();
         }
+    }
+
+    public static boolean isInVocabulary(String guess) {
+        // Sfrutto l'ordinamento del vocabolario e quindi che la lista di parole è anch'essa ordinata, dato che mantiene l'ordine di inserimento (se il vocabolario non fosse ordinato basterebbe fare prima Collections.sort(wordList))
+        int index = Collections.binarySearch(wordList, guess);
+        
+        if (index >= 0)
+            // parola trovata
+            return true;
+        else
+            // parola non trovata
+            return false;
+    }
+    
+    public static String getSecretWord() {
+        return secretWord;
+    }
+
+    public static void pickNewWord() {
+        // Scelgo una nuova parola dal vocabolario
+        Random rand = new Random();
+        int index = rand.nextInt(wordList.size());
+
+        String random_word = wordList.get(index);
+        while (extractedWords.contains(random_word)) { // fino a quando la parola estratta è una parola che è stata già estratta precedentemente
+            index = rand.nextInt(wordList.size());
+            random_word = wordList.get(index);
+        }
+        
+        // aggiungo la parola all'insieme della parole da non estrarre successivamente
+        extractedWords.add(random_word);
+
+        // Una volta individuata la nuova parola, aggiorno lo stato degli utenti per specificare che possono giocare
+        for (Entry<String, User> entry : users.entrySet()) {
+            User user = entry.getValue();
+            
+            user.setHas_not_played(); // imposto has_played = false per tutti gli utenti
+            users.replace(user.getUsername(), user);
+        }
+        
+        secretWord = random_word;
+        System.out.println("[DEBUG] Nuova parola proposta: " + secretWord);
+    }
+
+    public static void loadVocabulary() {
+        int num_words = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(VOCABULARYFILE))) {
+            String line = "";
+
+            while (line != null) {
+                line = br.readLine();
+                wordList.add(line);
+                num_words++;
+            }
+        } catch (FileNotFoundException ex) {
+            System.err.println("Errore, file " + VOCABULARYFILE + " non trovato, riprovare.");
+            ex.printStackTrace();
+        } catch (IOException ex) {
+            System.err.println("Errore nel caricamento del vocabolario di parole dal file " + VOCABULARYFILE);
+            ex.printStackTrace();
+        }
+
+        System.out.println("[DEBUG] Caricate con successo " + num_words + " parole nel vocabolario.");
     }
 
     public static void loadUsersFromJSON() {
@@ -132,7 +208,7 @@ public class WordleServer {
                 writer.name("total_games_won").value(userObj.getTotal_games_won());
                 writer.name("current_winstreak").value(userObj.getCurrent_winstreak());
                 writer.name("longest_winstreak").value(userObj.getLongest_winstreak());
-                writer.name("has_played").value(userObj.Has_played());
+                writer.name("has_played").value(false); // per consentire agli utenti di poter giocare alla prossima attivazione del server
                 writer.name("guess_distribution");
                 writer.beginArray();
                 for (int guess : userObj.getGuess_distribution()) {
@@ -172,16 +248,28 @@ public class WordleServer {
     public static User getUser(String username) {
         return users.get(username);
     }
+    
+    public static String checkIfUserHasPlayed(String username) {
+        User user = users.get(username);
+        if (user.Has_played())
+            return "ALREADY_PLAYED";
+        else {
+            // Aggiorno stato del giocatore, specificando che iniziando la partita ha giocato così l'ultima parola estratta
+            user.setHas_played();
+            updateUser(user);
+            return "SUCCESS";
+        }
+    }
 
     public static void updateUser(User user) {
         users.replace(user.getUsername(), user);
     }
 
     public static void main(String args[]) {
-        try {
-            // Lettura del file di configurazione del server
-            readConfig();
+        try { 
+            readConfig(); // Lettura del file di configurazione del server
             loadUsersFromJSON();
+            loadVocabulary();
         } catch (IOException ex) {
             System.err.println("Errore nella lettura del file di configurazione.");
             ex.printStackTrace();
@@ -189,18 +277,21 @@ public class WordleServer {
 
         try (ServerSocket welcomeSocket = new ServerSocket(PORT)) {
             // welcomeSocket.setSoTimeout(TIMEOUT);
-            System.out.println("Server attivo, ascolto sulla porta " + PORT);
+            System.out.println("[DEBUG] Server attivo, ascolto sulla porta " + PORT);
             ExecutorService pool = Executors.newCachedThreadPool();
 
-            // task di shutdown
+            // task che propone  periodicamente  una  nuova  parola
+            ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+            scheduler.scheduleAtFixedRate(() -> {
+                pickNewWord();
+            }, 0, WORD_UPDATE_DELAY, TimeUnit.MINUTES);
+            
+            // task di shutdown (alternativa allo shutdownhook, che tramite la console netbeans appare non funzionare.)
             Thread shutdownThread = new Thread() {
                 public void run() {
-                    // alternativa allo shutdownhook, che tramite la console netbeans appare non funzionare.
                     try (Scanner signalInput = new Scanner(System.in)) {
                         if (signalInput.hasNext()) {
-                            if (signalInput.next().equals("t")) {
-                                // shutdown.set(true);
-
+                            if (signalInput.next().equals("t")) { // t-erminate
                                 // salvo gli utenti
                                 saveUsersToJSON();
 
@@ -214,6 +305,8 @@ public class WordleServer {
                                 }
                                 // Faccio terminare il pool di thread.
                                 pool.shutdown();
+                                scheduler.shutdown();
+                                
                                 try {
                                     if (!pool.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)) {
                                         pool.shutdownNow();
@@ -221,6 +314,15 @@ public class WordleServer {
                                 } catch (InterruptedException e) {
                                     pool.shutdownNow();
                                 }
+                                
+                                try {
+                                    if (!scheduler.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)) {
+                                        scheduler.shutdownNow();
+                                    }
+                                } catch (InterruptedException e) {
+                                    scheduler.shutdownNow();
+                                }
+                                
                                 System.out.println("[SERVER] Terminato.");
                             }
                         };
@@ -228,18 +330,12 @@ public class WordleServer {
                 }
             };
             shutdownThread.start();
-            /* Runtime.getRuntime().addShutdownHook(new Thread() {
-                public void run() {
-                    System.out.println("Running Shutdown Hook");
-                }
-            }); */ // Avvio l'handler di terminazione.
-            //Runtime.getRuntime().addShutdownHook(new TerminationHandler(TIMEOUT, pool, welcomeSocket));
-            // Quando il TerminationHandler chiude la ServerSocket viene sollevata una SocketException ed esco dal ciclo.
+            
             while (true) {
                 pool.execute(new ClientHandler(welcomeSocket.accept(), connectedUsers++));
             }
-        } catch (SocketException se) {
-        } catch (IOException ex) {
+        } catch (SocketException se) { } 
+        catch (IOException ex) {
             System.err.printf("[SERVER] Errore: %s\n", ex.getMessage());
             ex.printStackTrace();
         }

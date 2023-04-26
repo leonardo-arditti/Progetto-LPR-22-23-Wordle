@@ -139,6 +139,59 @@ public class WordleClient {
         }
     }
 
+    public static void playWORDLE(boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+
+        if (!currentUser.isLoggedIn()) {
+            System.err.println("E' possibile giocare solo una volta loggati.");
+            return;
+        }
+
+        out.println("PLAYWORDLE");
+        String response = in.nextLine();
+
+        switch (response) {
+            case "ALREADY_PLAYED":
+                System.err.println("Hai già giocato con l'ultima parola estratta dal server, riprova più tardi.");
+                break;
+
+            case "SUCCESS":
+                System.out.println("Inizio della sessione di gioco, usare sendWord(<guessWord>) per giocare, hai a disposizione 12 tentativi.");
+                currentUser.setHas_played();
+                break;
+        }
+    }
+
+    public static void sendWord(String guessWord, boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+
+        if (!currentUser.isLoggedIn()) {
+            System.err.println("E' possibile inviare una parola solo una volta loggati.");
+            return;
+        }
+
+        out.println("SENDWORD" + "," + guessWord);
+        String response = in.nextLine();
+
+        if (response.equals("NOT_IN_VOCABULARY")) {
+            System.err.println("La parola inviata non appartiene al vocabolario del gioco, riprovare.");
+        } else if (response.equals("MAX_ATTEMPTS")) {
+            System.err.println("E' stato raggiunto il numero massimo di tentativi per indovinare la secret word");
+        } else if (response.startsWith("WIN")) {
+            System.out.println(response);
+        } else if (response.startsWith("LOSE")) {
+            System.err.println(response);
+        } else if (response.startsWith("CLUE")) {
+            System.out.println(response);
+        }
+    }
+
     private static void handleCommand(String command) {
         String[] parts = command.split("\\("); // Divide la stringa in base alla parentesi aperta
         String commandName = parts[0]; // Il nome del comando è la prima sottostringa
@@ -182,9 +235,21 @@ public class WordleClient {
                 break;
 
             case "playWORDLE":
+                if (!parts[1].equals(")")) // comando non rispetta la sintassi playWORDLE();
+                {
+                    malformed = true;
+                }
+
+                playWORDLE(malformed);
                 break;
 
             case "sendWord":
+                String guessWord = parts[1].substring(0, parts[1].length() - 1);
+                if (guessWord == null) {
+                    malformed = true;
+                }
+
+                sendWord(guessWord, malformed);
                 break;
 
             case "sendMeStatistics":
