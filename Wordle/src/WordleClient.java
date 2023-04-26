@@ -24,8 +24,9 @@ public class WordleClient {
     private static PrintWriter out;
     private static Scanner in;
 
-    private static User currentUser = new User();
-    private static boolean logged_out = false; // da aggiornare in logout
+    private static User currentUser = new User(); // inizialmente un placeholder, poi sostituito dall'utente corrispondente a quello specificato al login
+    private static boolean logged_out = false; // da aggiornare in logout, comporta la terminazione del programma
+    private static boolean game_started = false; // per impedire che si possa invocare sendWord senza aver invocato prima playWORDLE()
 
     /**
      * Metodo che legge il file di configurazione del client
@@ -57,13 +58,13 @@ public class WordleClient {
             return;
         }
 
-        // Uso la virgola come delimitatore
+        // Uso la virgola come delimitatore tra i vari campi di un comando, semplifica il parsing lato server
         out.println("REGISTER" + "," + username + "," + password);
         String response = in.nextLine();
 
         switch (response) {
             case "SUCCESS":
-                System.out.println("Registrazione avvenuta con successo. Procedere con il login.");
+                System.out.println("Registrazione avvenuta con successo. Procedere con il login usando login(username,password).");
                 break;
 
             case "DUPLICATE":
@@ -134,7 +135,7 @@ public class WordleClient {
             case "SUCCESS":
                 currentUser = new User();
                 logged_out = true;
-                System.out.println("Disconnessione avvenuta con successo, uscita dal programma in corso.");
+                System.out.println("Disconnessione avvenuta con successo, uscita dal programma in corso. A presto!");
                 break;
         }
     }
@@ -155,11 +156,12 @@ public class WordleClient {
 
         switch (response) {
             case "ALREADY_PLAYED":
-                System.err.println("Hai già giocato con l'ultima parola estratta dal server, riprova più tardi.");
+                System.err.println("Hai già giocato con l'ultima parola estratta dal server o la stai giocando attualmente.");
                 break;
 
             case "SUCCESS":
                 System.out.println("Inizio della sessione di gioco, usare sendWord(<guessWord>) per giocare, hai a disposizione 12 tentativi.");
+                game_started = true;
                 currentUser.setHas_played();
                 break;
         }
@@ -176,20 +178,63 @@ public class WordleClient {
             return;
         }
 
+        if (!game_started) {
+            System.err.println("E' possibile inviare una guess word solo dopo aver iniziato una partita (con playWORDLE())");
+            return;
+        }
+
         out.println("SENDWORD" + "," + guessWord);
         String response = in.nextLine();
 
         if (response.equals("NOT_IN_VOCABULARY")) {
             System.err.println("La parola inviata non appartiene al vocabolario del gioco, riprovare.");
         } else if (response.equals("MAX_ATTEMPTS")) {
-            System.err.println("E' stato raggiunto il numero massimo di tentativi per indovinare la secret word");
+            System.err.println("E' stato raggiunto il numero massimo di tentativi per indovinare la secret word corrente.");
+            game_started = false;
+        } else if (response.equals("ALREADY_WON")) {
+            System.err.println("La secret word è stata già indovinata. Attendere la pubblicazione della nuova secret word.");
+            game_started = false;
         } else if (response.startsWith("WIN")) {
             System.out.println(response);
+            game_started = false;
         } else if (response.startsWith("LOSE")) {
             System.err.println(response);
+            game_started = false;
         } else if (response.startsWith("CLUE")) {
             System.out.println(response);
         }
+    }
+
+    public static void help() {
+        System.out.println("I comandi disponibili sono:\n"
+                + "login(username, password)\n"
+                + "logout(username)\n"
+                + "playWORDLE()\n"
+                + "sendWord(guessWord)\n"
+                + "sendMeStatistics()\n"
+                + "share()\n"
+                + "showMeSharing()");
+    }
+
+    public static void sendMeStatistics(boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+
+        if (!currentUser.isLoggedIn()) {
+            System.err.println("E' possibile richiedere le statistiche solo una volta loggati.");
+            return;
+        }
+
+        out.println("SENDMESTATISTICS");
+        String response = in.nextLine();
+
+        System.out.println("=====STATISTICHE=====");
+        for (String component : response.split("-")) {
+            System.out.println(component);
+        }
+        System.out.println("=====================");
     }
 
     private static void handleCommand(String command) {
@@ -228,18 +273,16 @@ public class WordleClient {
 
             case "logout":
                 username = parts[1].substring(0, parts[1].length() - 1);
-                if (username == null) {
+                if (username == "") {
                     malformed = true;
                 }
                 logout(username, malformed);
                 break;
 
             case "playWORDLE":
-                if (!parts[1].equals(")")) // comando non rispetta la sintassi playWORDLE();
-                {
+                if (!command.equals("playWORDLE()")) { // comando non rispetta la sintassi playWORDLE();
                     malformed = true;
                 }
-
                 playWORDLE(malformed);
                 break;
 
@@ -248,11 +291,14 @@ public class WordleClient {
                 if (guessWord == null) {
                     malformed = true;
                 }
-
                 sendWord(guessWord, malformed);
                 break;
 
             case "sendMeStatistics":
+                if (!command.equals("sendMeStatistics()")) {
+                    malformed = true;
+                }
+                sendMeStatistics(malformed);
                 break;
 
             case "share":
@@ -262,6 +308,7 @@ public class WordleClient {
                 break;
 
             case "help":
+                help();
                 break;
 
             default:
