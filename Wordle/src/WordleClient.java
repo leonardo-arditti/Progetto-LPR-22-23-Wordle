@@ -333,8 +333,7 @@ public class WordleClient {
     }
 
     /**
-     * Metodo che manda la richiesta di visualizzare le statistiche di un utente
-     * al server WORDLE
+     * Metodo che manda la richiesta di visualizzare le statistiche di un utente al server WORDLE
      *
      * @param malformed Un flag booleano che indica se il comando è malformato.
      *                  Se true, il metodo non manderà la richiesta di visualizzare le statistiche e genererà un messaggio di errore
@@ -636,7 +635,7 @@ public class WordleClient {
             readConfig(); // Lettura del file properties di configurazione del client
             startConnection(); // Tenta di stabilire la connessione al server TCP WORDLE
         } catch (IOException ex) {
-            System.err.println("Errore nella lettura del file di configurazione.");
+            System.err.println("Errore nella lettura del file di configurazione e/o inizializzazione della connessione al server WORDLE.");
             ex.printStackTrace();
         }
 
