@@ -1,4 +1,3 @@
-
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -8,8 +7,7 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import com.google.gson.stream.JsonReader; // in particolare si userà la GSON Streaming API per sfruttare il caricamento parziale di parti di oggetti di grandi dimensioni
+import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -33,29 +31,28 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Leonardo Arditti 23/4/2023
  */
-
 public class WordleServer {
 
-    private static int connectedUsers = 0; // per scopi di stampe
+    private static int connectedUsers = 0; // per scopi di stampa sulla CLI
 
     // Percorso del file di configurazione del server
     public static final String CONFIG = "src/server.properties";
 
-    // Porta del server e nome del file contenente il vocabolario del gioco
-    public static int PORT;
-    public static int SERVER_NOTIFICATION_PORT; // usata per la comunicazione UDP tra client e server per la condivisione dei risultati di una partita
-    public static String VOCABULARY;
+    public static int PORT; // // Porta del server 
+    public static int SERVER_NOTIFICATION_PORT; // Porta usata per la comunicazione UDP tra client e server al fine di condividere i risultati di una partita
+    public static String VOCABULARY; // Nome del file contenente il vocabolario del gioco
     public static int TIMEOUT;
-    public static String USER_DB;
-    public static int WORD_UPDATE_DELAY;
-    public static String MULTICAST_GROUP_ADDRESS;
-    public static int MULTICAST_GROUP_PORT;
+    public static String USER_DB; // Nome del file che contiene le informazioni degli utenti in formato JSON
+    public static int WORD_UPDATE_DELAY; // Periodo di tempo che intercorre tra la pubblicazione di una parola segreta e la successiva
+    public static String MULTICAST_GROUP_ADDRESS; // Identifica un indirizzo di classe D
+    public static int MULTICAST_GROUP_PORT; // Porta usata nel MulticastSocket
 
-    private static String secretWord;
+    private static String secretWord; // Parola segreta che gli utenti devono indovinare
 
-    private static ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
-    private static List<String> wordList = new ArrayList<>();
-    private static Set<String> extractedWords = new HashSet<>();
+    /* Strutture dati:*/
+    private static ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>(); // Mappa che mantiene le associazioni username<->utenti
+    private static List<String> wordList = new ArrayList<>(); // Lista che conterrà la parole (ordinate per ipotesi) del vocabolario 
+    private static Set<String> extractedWords = new HashSet<>(); // Insieme di parole estratte in precedenza, in modo da non estrarle nuovamente
 
     /**
      * Metodo che legge il file di configurazione del server
@@ -80,11 +77,14 @@ public class WordleServer {
             ex.printStackTrace();
         }
     }
-
+    
+    /**
+     * Metodo che si occupa di ricevere da parte dei client gli esiti delle partite per poi invarli sul gruppo di multicast. 
+     */
     public static void handleSharing() {
         // Creo una DatagramSocket per l'invio dei pacchetti.
         try (DatagramSocket ds = new DatagramSocket(SERVER_NOTIFICATION_PORT);
-             MulticastSocket ms = new MulticastSocket(MULTICAST_GROUP_PORT);){
+             MulticastSocket ms = new MulticastSocket(MULTICAST_GROUP_PORT);) {
             // Ottengo l'indirizzo del gruppo e ne controllo la validita'.
             InetAddress group = InetAddress.getByName(MULTICAST_GROUP_ADDRESS);
             if (!group.isMulticastAddress()) {
@@ -92,16 +92,12 @@ public class WordleServer {
             }
             ms.joinGroup(group);
             System.out.println("[DEBUG] Server unito al gruppo Multicast con IP " + MULTICAST_GROUP_ADDRESS);
-            while (true) { // da modificare per consentire uscita
+            while (true) { 
                 // ricevo datagramma UDP dal client che vuole condividere i propri risultati
                 DatagramPacket request = new DatagramPacket(new byte[8192], 8192);
                 ds.receive(request);
-                
-                
-                // System.err.println("RICEVUTO DAL CLIENT: " + new String(request.getData(), 0, request.getLength(), "UTF-8"));
-                
-                
-                // mando datagramma UDP al gruppo multicast contenente la notifica con i risultati ricevuta dal client
+
+                // mando al gruppo multicast un datagramma UDP contenente la notifica con i risultati ricevuti dal client  
                 DatagramPacket response = new DatagramPacket(request.getData(), request.getLength(), group, MULTICAST_GROUP_PORT);
                 ms.send(response);
                 System.out.println("[DEBUG] Mandata dal server una notifica al gruppo multicast.");
@@ -111,32 +107,41 @@ public class WordleServer {
         }
     }
 
+    /**
+     * Metodo che verifica se una guess è presenta all'interno del vocabolario di parole
+     * @param guess La parola di cui bisogna verificare l'appartenenza al vocabolario
+     * @return      True se la parola apparteiene al vocabolario, false altrimenti
+     */
     public static boolean isInVocabulary(String guess) {
-        // Sfrutto l'ordinamento del vocabolario e quindi che la lista di parole è anch'essa ordinata, dato che mantiene l'ordine di inserimento (se il vocabolario non fosse ordinato basterebbe fare prima Collections.sort(wordList))
+        // Sfrutto l'ordinamento del vocabolario e quindi che la lista di parole è anch'essa ordinata, dato che mantiene l'ordine di inserimento (se non ci fosse l'ipotesi sull'ordinamento del vocabolario basterebbe fare prima Collections.sort(wordList))
         int index = Collections.binarySearch(wordList, guess);
 
-        if (index >= 0) // parola trovata
-        {
+        if (index >= 0) // parola trovata 
             return true;
-        } else // parola non trovata
-        {
-            return false;
-        }
+        else // parola non trovata
+            return false; 
     }
 
+    /**
+     * Metodo che restituisce l'ultima parola segreta estratta dal server
+     * @return L'ultima parola segreta del gioco che è stata estratta
+     */
     public static String getSecretWord() {
         return secretWord;
     }
 
+    /**
+     * Metodo che va a individuare una nuova parola da indovinare per gli utenti tra quelle che non sono già state estratte precedentemente.
+     * Questo metodo verrà invocato periodicamente da un task sottomesso a uno Scheduled Thread Pool.
+     */
     public static void pickNewWord() {
-        // Scelgo una nuova parola dal vocabolario
         Random rand = new Random();
-        int index = rand.nextInt(wordList.size());
+        int index = rand.nextInt(wordList.size()); // genera un numero casuale nell'intervallo [0,dimensione vocabolario - 1]
 
-        String random_word = wordList.get(index);
-        while (extractedWords.contains(random_word)) { // fino a quando la parola estratta è una parola che è stata già estratta precedentemente
-            index = rand.nextInt(wordList.size());
-            random_word = wordList.get(index);
+        String random_word = wordList.get(index); // estrai la parola del vocabolario che si trova nella posizione identificata dal numero casuale generato
+        while (extractedWords.contains(random_word)) { // fino a quando la parola estratta è una parola che è stata già estratta precedentemente (cioè già usata nel gioco)..
+            index = rand.nextInt(wordList.size()); //..continua a generare numeri casuali..
+            random_word = wordList.get(index);//..andando a estrarre la parola nella posizione data dal numero casuale
         }
 
         // aggiungo la parola all'insieme della parole da non estrarre successivamente
@@ -147,21 +152,24 @@ public class WordleServer {
             User user = entry.getValue();
 
             user.setHas_not_played(); // imposto has_played = false per tutti gli utenti
-            users.replace(user.getUsername(), user);
+            users.replace(user.getUsername(), user); // rimpiazzo gli utenti nella mappa
         }
 
-        secretWord = random_word;
+        secretWord = random_word; // aggiorno la parola segreta con quella appena estratta
         System.out.println("[DEBUG] Nuova parola proposta: " + secretWord + ", pubblicazione prossima parola in " + WORD_UPDATE_DELAY + " minuti.");
     }
 
+    /**
+     * Metodo che va a leggere e memorizzare il vocabolario di parole del gioco
+     */
     public static void loadVocabulary() {
         int num_words = 0;
         try (BufferedReader br = new BufferedReader(new FileReader(VOCABULARY))) {
             String line = "";
 
-            while (line != null) {
+            while (line != null) { // fino a quando non sono state lette tutte le righe del file (per ipotesi dal vocabolario fornito si ha che 1 riga = 1 parola)
                 line = br.readLine();
-                wordList.add(line);
+                wordList.add(line); // aggiungi la parola letta alla lista delle parole del vocabolario
                 num_words++;
             }
         } catch (FileNotFoundException ex) {
@@ -175,18 +183,25 @@ public class WordleServer {
         System.out.println("[DEBUG] Caricate con successo " + num_words + " parole nel vocabolario.");
     }
 
+    /**
+     * Metodo che va a caricare il file JSON contenente le informazioni degli utenti.
+     * Si usa la GSON Streaming API perchè l'oggetto da caricare potrebbe essere grande e in questo modo si sfrutta
+     * il caricamento parziale dell'oggetto.
+     */
     public static void loadUsersFromJSON() {
         try (JsonReader reader = new JsonReader(new FileReader(USER_DB))) {
-            int total_users = 0;
-            reader.beginArray();
-            while (reader.hasNext()) {
+            int total_users = 0; // utenti nel file, usato a scopo di stampa su CLI
+            reader.beginArray(); // [
+            while (reader.hasNext()) { // l'array ha altri elementi?
+                
+                // Variabili che vengono usate nella creazione di un oggetto di tipo User
                 String username = "", password = "";
                 int total_games_played = 0, total_games_won = 0, current_winstreak = 0, longest_winstreak = 0;
                 boolean has_played = false;
                 ArrayList<Integer> guess_distribution = new ArrayList<>();
 
-                reader.beginObject();
-                while (reader.hasNext()) {
+                reader.beginObject(); // {
+                while (reader.hasNext()) { // leggo i vari campi dell'oggetto JSON
                     String key = reader.nextName();
                     if ("username".equals(key)) {
                         username = reader.nextString();
@@ -203,20 +218,22 @@ public class WordleServer {
                     } else if ("has_played".equals(key)) {
                         has_played = reader.nextBoolean();
                     } else if ("guess_distribution".equals(key)) {
-                        reader.beginArray();
+                        reader.beginArray(); // [
                         while (reader.hasNext()) {
                             int guess_attempt = reader.nextInt();
                             guess_distribution.add(guess_attempt);
                         }
-                        reader.endArray();
+                        reader.endArray(); // ]
                     }
                 }
-                reader.endObject();
+                reader.endObject(); // }
                 total_users++;
+                
+                // Creo l'oggetto User corrispondente alle informazioni lette da file e lo aggiungo alla struttura users che memorizza gli utenti
                 User user = new User(username, password, total_games_played, total_games_won, current_winstreak, longest_winstreak, has_played, guess_distribution);
-                users.put(username, user);
+                users.put(username, user); 
             }
-            reader.endArray();
+            reader.endArray(); // }
             System.out.println("[DEBUG] file " + USER_DB + " caricato con successo. (" + total_users + " utenti)");
             // Stampa mappa per debug
             // users.forEach((k,v)-> System.out.println("key: "+k+", value: "+v));
@@ -229,16 +246,19 @@ public class WordleServer {
         }
     }
 
+    /**
+     * Metodo che salva gli utenti memorizzati nella struttura users su un file JSON.
+     */
     private static void saveUsersToJSON() {
         try (JsonWriter writer = new JsonWriter(new FileWriter(USER_DB))) {
-            int total_users = 0;
-            writer.setIndent("\t");
-            writer.beginArray();
+            int total_users = 0; // per scopi di stampa sulla CLI
+            writer.setIndent("\t"); // per avere indentazione nel file JSON prodotto
+            writer.beginArray(); // [
             for (String username : users.keySet()) {
                 User userObj = users.get(username);
 
-                writer.beginObject();
-                writer.name("username").value(userObj.getUsername());
+                writer.beginObject(); // {
+                writer.name("username").value(userObj.getUsername()); // scrivo coppie key-value nel file JSON
                 writer.name("password").value(userObj.getPassword());
                 writer.name("total_played_games").value(userObj.getTotal_played_games());
                 writer.name("total_games_won").value(userObj.getTotal_games_won());
@@ -246,15 +266,15 @@ public class WordleServer {
                 writer.name("longest_winstreak").value(userObj.getLongest_winstreak());
                 writer.name("has_played").value(false); // per consentire agli utenti di poter giocare alla prossima attivazione del server
                 writer.name("guess_distribution");
-                writer.beginArray();
+                writer.beginArray(); // [
                 for (int guess : userObj.getGuess_distribution()) {
                     writer.value(guess);
                 }
-                writer.endArray();
-                writer.endObject();
+                writer.endArray(); // ]
+                writer.endObject(); // }
                 total_users++;
             }
-            writer.endArray();
+            writer.endArray(); // ]
             System.out.println("[DEBUG] file " + USER_DB + " scritto con successo. (" + total_users + " utenti)");
         } catch (IOException ex) {
             System.err.println("Errore nella scrittura del file " + USER_DB);
@@ -263,11 +283,11 @@ public class WordleServer {
     }
 
     /**
-     * Aggiunge un nuovo utente alla mappa <Utente, Username>
+     * Aggiunge un nuovo utente alla struttura che memorizza gli utenti
      *
-     * @param username il nome utente del nuovo utente
-     * @param password la password del nuovo utente
-     * @return una stringa che indica l'esito dell'operazione
+     * @param username Il nome utente del nuovo utente da memorizzare
+     * @param password La password del nuovo utente da memorizzare
+     * @return         Una stringa che indica l'esito dell'operazione
      */
     public static String addUser(String username, String password) {
         if (password.equals("")) {
@@ -281,13 +301,23 @@ public class WordleServer {
         return "SUCCESS";
     }
 
+    /**
+     * Metodo che restituisce un utente memorizzato a partire dal suo username 
+     * @param  username L'username dell'utente desiderato
+     * @return          L'oggetto User corrispondente a quell'username, o null se non presente
+     */
     public static User getUser(String username) {
         return users.get(username);
     }
 
+    /**
+     * Metodo che controlla se un utente ha già giocato (cioè ha già provato a indovinare l'ultima parola estratta)
+     * @param username L'username dell'utente di cui si vuole verificare la partecipazione al gioco
+     * @return         Una stringa: "ALREADY_PLAYED" se l'utente ha già giocato, "SUCCESS" altrimenti
+     */
     public static String checkIfUserHasPlayed(String username) {
         User user = users.get(username);
-        if (user.Has_played()) {
+        if (user.Has_played()) { // L'utente ha già giocato con l'ultima parola estratta
             return "ALREADY_PLAYED";
         } else {
             // Aggiorno stato del giocatore, specificando che iniziando la partita ha giocato così l'ultima parola estratta
@@ -296,27 +326,32 @@ public class WordleServer {
             return "SUCCESS";
         }
     }
-
+    
+    /**
+     * Metodo che va a aggiornare i dati di un utente memorizzato
+     * @param user L'utente di cui si vogliono aggiornare i dati
+     */
     public static void updateUser(User user) {
         users.replace(user.getUsername(), user);
     }
 
+    // Metodo main per testare le funzionalità del server WORDLE
     public static void main(String args[]) {
         try {
             readConfig(); // Lettura del file di configurazione del server
-            loadUsersFromJSON();
-            loadVocabulary();
+            loadUsersFromJSON(); // Caricamento degli utenti dal file JSON
+            loadVocabulary(); // Caricamento del vocabolario del gioco
         } catch (IOException ex) {
-            System.err.println("Errore nella lettura del file di configurazione.");
+            System.err.println("Errore nella lettura del file di configurazione/database utenti/vocabolario.");
             ex.printStackTrace();
         }
 
-        try (ServerSocket welcomeSocket = new ServerSocket(PORT)) {
+        try (ServerSocket welcomeSocket = new ServerSocket(PORT)) { // Definisco una socket per accettare le richieste di connessione da parte dei client
             // welcomeSocket.setSoTimeout(TIMEOUT);
             System.out.println("[DEBUG] Server attivo, ascolto sulla porta " + PORT);
             ExecutorService pool = Executors.newCachedThreadPool();
 
-            // pool con task che propone  periodicamente  una  nuova  parola
+            // pool con task che propone periodicamente una nuova parola da indovinare
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
             scheduler.scheduleAtFixedRate(() -> {
                 pickNewWord();
@@ -327,29 +362,31 @@ public class WordleServer {
             ms_pool.submit(() -> {
                 handleSharing();
             });
-            
-            // task di shutdown (alternativa allo ShutdownHook, che tramite la console NetBeans appare non funzionare)
+
+            // Thread che esegue task di shutdown (alternativa allo ShutdownHook, che tramite la console NetBeans appare non funzionare)
             Thread shutdownThread = new Thread() {
                 public void run() {
                     try (Scanner signalInput = new Scanner(System.in)) {
-                        if (signalInput.hasNext()) {
-                            if (signalInput.next().equals("t")) { // t-erminate
-                                // salvo gli utenti
+                        if (signalInput.hasNext()) { // se viene digitato qualcosa nella CLI del server
+                            if (signalInput.next().equals("t")) { // t come sinonimo di "t-erminate"
+                                // salvo gli utenti su file
                                 saveUsersToJSON();
 
                                 // Avvio la procedura di terminazione del server.
                                 System.out.println("[SERVER] Avvio terminazione...");
-                                // Chiudo la ServerSocket in modo tale da non accettare piu' nuove richieste.
+                                
+                                // Chiudo la ServerSocket in modo tale da non accettare più nuove richieste.
                                 try {
                                     welcomeSocket.close();
                                 } catch (IOException e) {
                                     System.err.printf("[SERVER] Errore: %s\n", e.getMessage());
                                 }
+                                
                                 // Faccio terminare il pool di thread.
                                 pool.shutdown();
                                 scheduler.shutdown();
                                 ms_pool.shutdown();
-                                
+
                                 try {
                                     if (!pool.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)) {
                                         pool.shutdownNow();
@@ -365,7 +402,7 @@ public class WordleServer {
                                 } catch (InterruptedException e) {
                                     scheduler.shutdownNow();
                                 }
-                                
+
                                 try {
                                     if (!ms_pool.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)) {
                                         ms_pool.shutdownNow();
@@ -373,7 +410,7 @@ public class WordleServer {
                                 } catch (InterruptedException e) {
                                     ms_pool.shutdownNow();
                                 }
-                                
+
                                 System.out.println("[SERVER] Terminato.");
                                 System.exit(0);
                             }
@@ -381,9 +418,9 @@ public class WordleServer {
                     }
                 }
             };
-            shutdownThread.start();
+            shutdownThread.start(); // Il thread va a eseguire il task specificato dal metodo run
 
-            while (true) {
+            while (true) { // gestisco la comunicazione con un client grazie alla connection socket restituita dalla accept
                 pool.execute(new ClientHandler(welcomeSocket.accept(), connectedUsers++));
             }
         } catch (SocketException se) {

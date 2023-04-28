@@ -4,6 +4,10 @@ import java.util.ArrayList;
 /** 
  * @author Leonardo Arditti 24/4/2023
  */
+
+/**
+ * Classe che rappresenta un utente del gioco WORDLE.
+ */
 public class User {
     private String username;
     private String password;
