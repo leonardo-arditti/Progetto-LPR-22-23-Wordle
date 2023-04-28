@@ -21,9 +21,9 @@
 	{
 		"username": "leo",
 		"password": "123",
-		"total_played_games": 15,
-		"total_games_won": 10,
-		"current_winstreak": 2,
+		"total_played_games": 16,
+		"total_games_won": 11,
+		"current_winstreak": 3,
 		"longest_winstreak": 4,
 		"has_played": false,
 		"guess_distribution": [

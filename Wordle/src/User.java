@@ -1,4 +1,3 @@
-
 import java.util.ArrayList;
 
 /** 
@@ -16,7 +15,7 @@ public class User {
     private int current_winstreak;
     private int longest_winstreak;
     private ArrayList<Integer> guess_distribution;
-    private boolean has_played; // possibile rimozione? (oppure uso una seconda mappa e la aggiorno quando cambia la parola?!)
+    private boolean has_played;
     private boolean is_logged;
     
     public User(String username, String password) {
@@ -30,6 +29,7 @@ public class User {
         this.has_played = false;
     }
 
+    // Costruttore completo
     public User(String username, String password, int total_played_games, int total_games_won, int current_winstreak, int longest_winstreak, boolean has_played, ArrayList<Integer> guess_distribution) {
         this.username = username;
         this.password = password;
@@ -41,21 +41,15 @@ public class User {
         this.has_played = has_played;
     }
     
+    // Costruttore usato quando non tutti i dati dell'utente sono disponibili (e.g: alla inizializzazione del programma client)
     public User() {
         this.is_logged = false;
     }
     
+    // Metodi getter
     public boolean isLoggedIn() {
         return this.is_logged;
-    }
-    
-    public void setLoggedIn() {
-        this.is_logged = true;
-    }
-    
-    public void setNotLoggedIn() {
-        this.is_logged = false;
-    }
+    } 
     
     public String getUsername() {
         return username;
@@ -89,6 +83,25 @@ public class User {
         return has_played;
     }
     
+    public String statistics() {
+        // Vanno mostrate le seguenti statistiche:
+        // - numero partite giocate
+        // - percentuale di partite vinte
+        // - lunghezza dell’ultima sequenza continua (streak) di vincite
+        // - lunghezza della massima sequenza continua (streak) di vincite
+        // - guess distribution: la distribuzione di tentativi impiegati per arrivare alla soluzione del gioco, in ogni partita vinta dal giocatore
+        
+        double win_percentage = ((double) total_games_won / total_played_games) * 100;
+        return "Partite giocate: " + total_played_games + "-" +
+               "Partite vinte: " + total_played_games + "-" + 
+               "Percentuale partite vinte: " + win_percentage + "%-" +
+               "Streak di vincite corrente: " + current_winstreak + "-" +
+               "Streak di vincite più lunga: " + longest_winstreak + "-" +
+               "Guess distribution: " + guess_distribution;               
+    }
+    
+    // Metodi setter
+    
     public void setHas_not_played() {
         has_played = false;
     }
@@ -97,9 +110,13 @@ public class User {
         has_played = true;
     }
     
-    /* public boolean isIs_logged() {
-        return is_logged;
-    } */
+    public void setLoggedIn() {
+        this.is_logged = true;
+    }
+    
+    public void setNotLoggedIn() {
+        this.is_logged = false;
+    }
     
     public void addWin(int numTries) {
         current_winstreak++;
@@ -117,21 +134,6 @@ public class User {
         current_winstreak = 0;
         
         total_played_games++;
-    }
-    
-    public String statistics() {
-        // Vanno mostrate le seguenti statistiche:
-        // - numero partite giocate
-        // - percentuale di partite vinte
-        // - lunghezza dell’ultima sequenza continua (streak) di vincite
-        // - lunghezza della massima sequenza continua (streak) di vincite
-        // - guess distribution: la distribuzione di tentativi impiegati per arrivare alla soluzione del gioco, in ogni partita vinta dal giocatore
-        
-        return "Partite giocate: " + total_played_games + "-" +
-               "Percentuale partite vinte: " + (total_games_won/total_played_games) + "-" +
-               "Streak di vincite corrente: " + current_winstreak + "-" +
-               "Streak di vincite più lunga: " + longest_winstreak + "-" +
-               "Guess distribution: " + guess_distribution;               
     }
     
     @Override
