@@ -1,6 +1,7 @@
 
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -13,13 +14,14 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private boolean is_playing = false; // usato per gestire il logout una volta iniziata una partita 
     private boolean has_won = false;  // usato per impedire il proseguo di una partita quando si è conclusa perchè indovinata la secret word
+    // private boolean has_shared = false; // da rimuovere? non ha senso limitare il numero di volte che si condivide.. wordle vero non lo fa!
     private User connectedUser;
     private boolean logged_out = false;
 
     private int userAttempts; // ogni tentativo da parte dell'utente di indovinare la GW comporta un incremento del contatore
     private final int MAX_ATTEMPTS = 12;
     private String secretWord;
-
+    
     public ClientHandler(Socket socket, int client_id) {
         this.socket = socket;
         this.client_id = client_id;
@@ -112,7 +114,7 @@ public class ClientHandler implements Runnable {
                         } else {
                             // parola nel vocabolario, conto il tentativo
                             userAttempts++;
-
+                            
                             if (secretWord.equals(guess)) {
                                 out.println("WIN: Hai indovinato la secret word in " + userAttempts + " tentativi!");
                                 connectedUser.addWin(userAttempts);
@@ -120,15 +122,16 @@ public class ClientHandler implements Runnable {
                                 has_won = true;
                                 is_playing = false;
                             } else {
+                                String clue = provideClue(guess);
+                                
                                 if (userAttempts == MAX_ATTEMPTS) {
                                     // tentativi finiti per indovinare la secret word
-                                    out.println("LOSE: La secret word era " + secretWord + ". Grazie per aver giocato!");
+                                    out.println("LOSE: " + clue + ", la secret word era " + secretWord + ". Grazie per aver giocato!");
                                     connectedUser.addLose(userAttempts);
                                     WordleServer.updateUser(connectedUser);
                                     is_playing = false;
                                 } else {
                                     // tentativi non finiti per indovinare la secret word, invio dei suggerimenti sulla base della parola fornita
-                                    String clue = provideClue(guess);
                                     out.println("CLUE: " + clue + ", hai a disposizione " + (MAX_ATTEMPTS - userAttempts) + " tentativi.");
                                 }
                             }

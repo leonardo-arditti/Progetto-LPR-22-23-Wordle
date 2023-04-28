@@ -1,6 +1,5 @@
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 /** 
  * @author Leonardo Arditti 24/4/2023
@@ -122,7 +121,7 @@ public class User {
         // - percentuale di partite vinte
         // - lunghezza dell’ultima sequenza continua (streak) di vincite
         // - lunghezza della massima sequenza continua (streak) di vincite
-        // - guess distribution: la distribuzione di tentativi impiegati per arrivare alla soluzione del gioco, in ogni partita vinta dal giocatore.
+        // - guess distribution: la distribuzione di tentativi impiegati per arrivare alla soluzione del gioco, in ogni partita vinta dal giocatore
         
         return "Partite giocate: " + total_played_games + "-" +
                "Percentuale partite vinte: " + (total_games_won/total_played_games) + "-" +

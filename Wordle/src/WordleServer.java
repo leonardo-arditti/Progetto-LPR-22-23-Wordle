@@ -14,6 +14,10 @@ import com.google.gson.stream.JsonWriter;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,9 +34,6 @@ import java.util.concurrent.TimeUnit;
  * @author Leonardo Arditti 23/4/2023
  */
 
-/*
-* NB: SHUTDOWNHOOK NON FUNZIONA SU NETBEANS, NECESSITO DI USARE UN METODO ALTERNATIVO 
- */
 public class WordleServer {
 
     private static int connectedUsers = 0; // per scopi di stampe
@@ -42,16 +43,17 @@ public class WordleServer {
 
     // Porta del server e nome del file contenente il vocabolario del gioco
     public static int PORT;
-    public static String VOCABULARYFILE;
+    public static int SERVER_NOTIFICATION_PORT; // usata per la comunicazione UDP tra client e server per la condivisione dei risultati di una partita
+    public static String VOCABULARY;
     public static int TIMEOUT;
     public static String USER_DB;
     public static int WORD_UPDATE_DELAY;
+    public static String MULTICAST_GROUP_ADDRESS;
+    public static int MULTICAST_GROUP_PORT;
 
-    private static String secretWord; // TODO
+    private static String secretWord;
 
     private static ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
-    // private static ConcurrentHashMap<String, Boolean> usersThatHaveAlreadyPlayed = new ConcurrentHashMap<String, Boolean>(); // possibile rimozione?
-    // private static AtomicBoolean shutdown = new AtomicBoolean(false);
     private static List<String> wordList = new ArrayList<>();
     private static Set<String> extractedWords = new HashSet<>();
 
@@ -66,28 +68,62 @@ public class WordleServer {
             Properties prop = new Properties();
             prop.load(input);
             PORT = Integer.parseInt(prop.getProperty("PORT"));
-            VOCABULARYFILE = prop.getProperty("VOCABULARYFILE");
+            SERVER_NOTIFICATION_PORT = Integer.parseInt(prop.getProperty("SERVER_NOTIFICATION_PORT"));
+            VOCABULARY = prop.getProperty("VOCABULARY");
             TIMEOUT = Integer.parseInt(prop.getProperty("TIMEOUT"));
             USER_DB = prop.getProperty("USER_DB");
             WORD_UPDATE_DELAY = Integer.parseInt(prop.getProperty("WORD_UPDATE_DELAY"));
+            MULTICAST_GROUP_ADDRESS = prop.getProperty("MULTICAST_GROUP_ADDRESS");
+            MULTICAST_GROUP_PORT = Integer.parseInt(prop.getProperty("MULTICAST_GROUP_PORT"));
         } catch (IOException ex) {
             System.err.println("Errore durante la lettura del file di configurazione.");
             ex.printStackTrace();
         }
     }
 
+    public static void handleSharing() {
+        // Creo una DatagramSocket per l'invio dei pacchetti.
+        try (DatagramSocket ds = new DatagramSocket(SERVER_NOTIFICATION_PORT);
+             MulticastSocket ms = new MulticastSocket(MULTICAST_GROUP_PORT);){
+            // Ottengo l'indirizzo del gruppo e ne controllo la validita'.
+            InetAddress group = InetAddress.getByName(MULTICAST_GROUP_ADDRESS);
+            if (!group.isMulticastAddress()) {
+                throw new IllegalArgumentException("Indirizzo multicast non valido: " + group.getHostAddress());
+            }
+            ms.joinGroup(group);
+            System.out.println("[DEBUG] Server unito al gruppo Multicast con IP " + MULTICAST_GROUP_ADDRESS);
+            while (true) { // da modificare per consentire uscita
+                // ricevo datagramma UDP dal client che vuole condividere i propri risultati
+                DatagramPacket request = new DatagramPacket(new byte[8192], 8192);
+                ds.receive(request);
+                
+                
+                // System.err.println("RICEVUTO DAL CLIENT: " + new String(request.getData(), 0, request.getLength(), "UTF-8"));
+                
+                
+                // mando datagramma UDP al gruppo multicast contenente la notifica con i risultati ricevuta dal client
+                DatagramPacket response = new DatagramPacket(request.getData(), request.getLength(), group, MULTICAST_GROUP_PORT);
+                ms.send(response);
+                System.out.println("[DEBUG] Mandata dal server una notifica al gruppo multicast.");
+            }
+        } catch (Exception e) {
+            System.err.println("Errore server: " + e.getMessage());
+        }
+    }
+
     public static boolean isInVocabulary(String guess) {
         // Sfrutto l'ordinamento del vocabolario e quindi che la lista di parole è anch'essa ordinata, dato che mantiene l'ordine di inserimento (se il vocabolario non fosse ordinato basterebbe fare prima Collections.sort(wordList))
         int index = Collections.binarySearch(wordList, guess);
-        
-        if (index >= 0)
-            // parola trovata
+
+        if (index >= 0) // parola trovata
+        {
             return true;
-        else
-            // parola non trovata
+        } else // parola non trovata
+        {
             return false;
+        }
     }
-    
+
     public static String getSecretWord() {
         return secretWord;
     }
@@ -102,25 +138,25 @@ public class WordleServer {
             index = rand.nextInt(wordList.size());
             random_word = wordList.get(index);
         }
-        
+
         // aggiungo la parola all'insieme della parole da non estrarre successivamente
         extractedWords.add(random_word);
 
         // Una volta individuata la nuova parola, aggiorno lo stato degli utenti per specificare che possono giocare
         for (Entry<String, User> entry : users.entrySet()) {
             User user = entry.getValue();
-            
+
             user.setHas_not_played(); // imposto has_played = false per tutti gli utenti
             users.replace(user.getUsername(), user);
         }
-        
+
         secretWord = random_word;
-        System.out.println("[DEBUG] Nuova parola proposta: " + secretWord);
+        System.out.println("[DEBUG] Nuova parola proposta: " + secretWord + ", pubblicazione prossima parola in " + WORD_UPDATE_DELAY + " minuti.");
     }
 
     public static void loadVocabulary() {
         int num_words = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(VOCABULARYFILE))) {
+        try (BufferedReader br = new BufferedReader(new FileReader(VOCABULARY))) {
             String line = "";
 
             while (line != null) {
@@ -129,10 +165,10 @@ public class WordleServer {
                 num_words++;
             }
         } catch (FileNotFoundException ex) {
-            System.err.println("Errore, file " + VOCABULARYFILE + " non trovato, riprovare.");
+            System.err.println("Errore, file " + VOCABULARY + " non trovato, riprovare.");
             ex.printStackTrace();
         } catch (IOException ex) {
-            System.err.println("Errore nel caricamento del vocabolario di parole dal file " + VOCABULARYFILE);
+            System.err.println("Errore nel caricamento del vocabolario di parole dal file " + VOCABULARY);
             ex.printStackTrace();
         }
 
@@ -248,12 +284,12 @@ public class WordleServer {
     public static User getUser(String username) {
         return users.get(username);
     }
-    
+
     public static String checkIfUserHasPlayed(String username) {
         User user = users.get(username);
-        if (user.Has_played())
+        if (user.Has_played()) {
             return "ALREADY_PLAYED";
-        else {
+        } else {
             // Aggiorno stato del giocatore, specificando che iniziando la partita ha giocato così l'ultima parola estratta
             user.setHas_played();
             updateUser(user);
@@ -266,7 +302,7 @@ public class WordleServer {
     }
 
     public static void main(String args[]) {
-        try { 
+        try {
             readConfig(); // Lettura del file di configurazione del server
             loadUsersFromJSON();
             loadVocabulary();
@@ -280,13 +316,19 @@ public class WordleServer {
             System.out.println("[DEBUG] Server attivo, ascolto sulla porta " + PORT);
             ExecutorService pool = Executors.newCachedThreadPool();
 
-            // task che propone  periodicamente  una  nuova  parola
+            // pool con task che propone  periodicamente  una  nuova  parola
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
             scheduler.scheduleAtFixedRate(() -> {
                 pickNewWord();
             }, 0, WORD_UPDATE_DELAY, TimeUnit.MINUTES);
+
+            // pool con task che si occupa di gestire la comunicazione multicast
+            ExecutorService ms_pool = Executors.newFixedThreadPool(1);
+            ms_pool.submit(() -> {
+                handleSharing();
+            });
             
-            // task di shutdown (alternativa allo shutdownhook, che tramite la console netbeans appare non funzionare.)
+            // task di shutdown (alternativa allo ShutdownHook, che tramite la console NetBeans appare non funzionare)
             Thread shutdownThread = new Thread() {
                 public void run() {
                     try (Scanner signalInput = new Scanner(System.in)) {
@@ -306,6 +348,7 @@ public class WordleServer {
                                 // Faccio terminare il pool di thread.
                                 pool.shutdown();
                                 scheduler.shutdown();
+                                ms_pool.shutdown();
                                 
                                 try {
                                     if (!pool.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)) {
@@ -314,7 +357,7 @@ public class WordleServer {
                                 } catch (InterruptedException e) {
                                     pool.shutdownNow();
                                 }
-                                
+
                                 try {
                                     if (!scheduler.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)) {
                                         scheduler.shutdownNow();
@@ -323,19 +366,28 @@ public class WordleServer {
                                     scheduler.shutdownNow();
                                 }
                                 
+                                try {
+                                    if (!ms_pool.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS)) {
+                                        ms_pool.shutdownNow();
+                                    }
+                                } catch (InterruptedException e) {
+                                    ms_pool.shutdownNow();
+                                }
+                                
                                 System.out.println("[SERVER] Terminato.");
+                                System.exit(0);
                             }
                         };
                     }
                 }
             };
             shutdownThread.start();
-            
+
             while (true) {
                 pool.execute(new ClientHandler(welcomeSocket.accept(), connectedUsers++));
             }
-        } catch (SocketException se) { } 
-        catch (IOException ex) {
+        } catch (SocketException se) {
+        } catch (IOException ex) {
             System.err.printf("[SERVER] Errore: %s\n", ex.getMessage());
             ex.printStackTrace();
         }

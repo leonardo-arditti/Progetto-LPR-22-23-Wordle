@@ -2,25 +2,26 @@
 	{
 		"username": "luca",
 		"password": "test",
-		"total_played_games": 5,
-		"total_games_won": 5,
-		"current_winstreak": 0,
-		"longest_winstreak": 0,
+		"total_played_games": 6,
+		"total_games_won": 6,
+		"current_winstreak": 1,
+		"longest_winstreak": 1,
 		"has_played": false,
 		"guess_distribution": [
 			1,
 			2,
 			3,
 			4,
-			5
+			5,
+			1
 		]
 	},
 	{
 		"username": "leo",
 		"password": "123",
-		"total_played_games": 7,
-		"total_games_won": 4,
-		"current_winstreak": 0,
+		"total_played_games": 9,
+		"total_games_won": 6,
+		"current_winstreak": 2,
 		"longest_winstreak": 3,
 		"has_played": false,
 		"guess_distribution": [
@@ -28,6 +29,8 @@
 			2,
 			1,
 			3,
+			1,
+			1,
 			1
 		]
 	},
