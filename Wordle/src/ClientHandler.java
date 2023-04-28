@@ -104,10 +104,10 @@ public class ClientHandler implements Runnable {
                     case "SENDWORD":
                         String guess = cmd_components[1];
 
-                        if (userAttempts == MAX_ATTEMPTS) {
-                            out.println("MAX_ATTEMPTS");
-                        } else if (has_won) {
+                        if (has_won) {
                             out.println("ALREADY_WON");
+                        } else if (userAttempts == MAX_ATTEMPTS) {
+                            out.println("MAX_ATTEMPTS");
                         } else if (!WordleServer.isInVocabulary(guess)) {
                             // la parola mandata dal client non è nel vocabolario, tentativo non contato
                             out.println("NOT_IN_VOCABULARY");
