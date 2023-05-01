@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Leonardo Arditti 23/4/2023
  */
-public class WordleClient {
+public class WordleClientMain {
 
     // Percorso del file di configurazione del client
     public static final String CONFIG = "src/client.properties";
@@ -48,10 +48,10 @@ public class WordleClient {
     private static boolean logged_out = false; // variabile aggiornata al logout, comporta la terminazione del programma
     
     // da valutare rimozione
-    // private static boolean game_started = false; // per impedire che si possa invocare sendWord senza aver invocato prima playWORDLE()
+    private static boolean game_started = false; // per impedire che si possa invocare sendWord senza aver invocato prima playWORDLE()
     private static boolean game_finished = false; // per consentire la condivisione dei tentativi per l'ultima partita giocata solo a partita finita
     private static boolean has_won = false; // variabile per il messaggio da condividere al gruppo multicast che verrà mandato al server, che deve includere oltre ai tentativi se l'utente ha vinto o meno
-
+    
     private static ArrayList<String> notifications = new ArrayList<>(); // notifiche inviate dal server riguardo alle partite di altri utenti
     private static ArrayList<String> userGuessesCodified; // tentativi dell'utente per la partita in corso (codificati perchè non mostro le lettere ma i simboli '?','X','+' associati ai colori)
 
@@ -235,7 +235,7 @@ public class WordleClient {
 
             case "SUCCESS":
                 System.out.println("Inizio della sessione di gioco, usare sendWord(<guessWord>) per giocare, hai a disposizione 12 tentativi.");
-                // game_started = true;
+                game_started = true;
                 game_finished = false;
                 // currentUser.setHas_played();
                 userGuessesCodified = new ArrayList<>(); // azzero le guess word inviate dell'utente (in una partita precedente), se presenti
@@ -262,10 +262,10 @@ public class WordleClient {
             return;
         }
 
-//        if (!game_started) {
-//            System.err.println("E' possibile inviare una guess word solo dopo aver iniziato una partita (con playWORDLE())");
-//            return;
-//        }
+        if (!game_started) {
+            System.err.println("E' possibile inviare una guess word solo dopo aver iniziato una partita (con playWORDLE())");
+            return;
+        }
         // Mando al server la richiesta con la guessed word e recupero la sua risposta
         out.println("SENDWORD" + "," + guessWord);
         String response = in.nextLine();
@@ -322,6 +322,7 @@ public class WordleClient {
      */
     public static void help() {
         System.out.println("I comandi disponibili sono:\n"
+                + "register(username, password)\n"
                 + "login(username, password)\n"
                 + "logout(username)\n"
                 + "playWORDLE()\n"

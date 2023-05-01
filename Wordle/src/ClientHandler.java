@@ -51,14 +51,14 @@ public class ClientHandler implements Runnable {
                         password = cmd_components[2];
                         
                         // Aggiungo il client agli utenti memorizzati dal server (se non presente un utente con lo stesso nome e se la password non è vuota)
-                        String outcome = WordleServer.addUser(username, password);
+                        String outcome = WordleServerMain.addUser(username, password);
                         out.println(outcome); // invio al client la risposta del server
                         break;
 
                     case "LOGIN":
                         username = cmd_components[1];
                         password = cmd_components[2];
-                        User matchedUser = WordleServer.getUser(username); // Esiste un utente con l'username fornito?
+                        User matchedUser = WordleServerMain.getUser(username); // Esiste un utente con l'username fornito?
                         if (matchedUser == null) { // Se non esiste => errore (cioè comunico l'errore al client)
                             out.println("NON_EXISTING_USER"); // comunico esito all'utente
                         } else if (!matchedUser.getPassword().equals(password)) { // Esiste ma la password ricevuta dal client e quella memorizzata non coincidono => errore
@@ -69,7 +69,7 @@ public class ClientHandler implements Runnable {
                             out.println("SUCCESS");
                             connectedUser = matchedUser; // Recupero le informazioni sull'utente autenticato dagli utenti memorizzati
                             connectedUser.setLoggedIn(); // Imposto lo stato di autenticazione dell'utente 
-                            WordleServer.updateUser(connectedUser); // Aggiorno l'utente ora autenticato negli utenti memorizzati
+                            WordleServerMain.updateUser(connectedUser); // Aggiorno l'utente ora autenticato negli utenti memorizzati
                         }
                         break;
 
@@ -79,7 +79,7 @@ public class ClientHandler implements Runnable {
                             out.println("ERROR"); // comunico esito all'utente
                         } else {
                             connectedUser.setNotLoggedIn(); // Imposto lo stato di autenticazione dell'utente..
-                            WordleServer.updateUser(connectedUser); //.. e lo aggiorno negli utenti memorizzati
+                            WordleServerMain.updateUser(connectedUser); //.. e lo aggiorno negli utenti memorizzati
                             out.println("SUCCESS");
                             logged_out = true; // per interrompere il ciclo di gestione dei comandi ricevuti dal client
 
@@ -88,17 +88,17 @@ public class ClientHandler implements Runnable {
                                 // L'esito negativo della partita è trasparente all'utente, 
                                 // ovvero non è mandato un messaggio di notifica per la terminazione prematura della partita ma solo che il logout è avvenuto con successo
                                 connectedUser.addLose(); // Aggiungo una sconfitta all'utente
-                                WordleServer.updateUser(connectedUser); // Aggiorno l'utente negli utenti memorizzati
+                                WordleServerMain.updateUser(connectedUser); // Aggiorno l'utente negli utenti memorizzati
                             }
                         }
                         break;
 
                     case "PLAYWORDLE":
                         // NB: login dell'utente controllato da parte del client
-                        outcome = WordleServer.checkIfUserHasPlayed(connectedUser.getUsername()); // Controllo se l'utente ha già provato a giocare con l'ultima secret word estratta
+                        outcome = WordleServerMain.checkIfUserHasPlayed(connectedUser.getUsername()); // Controllo se l'utente ha già provato a giocare con l'ultima secret word estratta
                         out.println(outcome);
                         if (outcome.equals("SUCCESS")) {
-                            secretWord = WordleServer.getSecretWord();
+                            secretWord = WordleServerMain.getSecretWord();
                             is_playing = true;
                             has_won = false; // necessario se si proviene da una partita precedente che è stata vinta al fine di poter inviare i propri tentativi con sendWord
                             userAttempts = 0; // ogni partita azzera il numero dei tentativi effettuati in precedenti partite del giocatore
@@ -112,7 +112,7 @@ public class ClientHandler implements Runnable {
                             out.println("ALREADY_WON"); // comunico esito all'utente
                         } else if (userAttempts == MAX_ATTEMPTS) { // l'utente ha raggiunto il numero massimo di tentativi senza indovinare la parola (ha perso)
                             out.println("MAX_ATTEMPTS");
-                        } else if (!WordleServer.isInVocabulary(guess)) { // la parola mandata dal client non è nel vocabolario, tentativo non contato
+                        } else if (!WordleServerMain.isInVocabulary(guess)) { // la parola mandata dal client non è nel vocabolario, tentativo non contato
                             out.println("NOT_IN_VOCABULARY");
                         } else {
                             // parola nel vocabolario, conto il tentativo
@@ -121,7 +121,7 @@ public class ClientHandler implements Runnable {
                             if (secretWord.equals(guess)) { // l'utente ha indovinato la parola segreta
                                 out.println("WIN: Hai indovinato la secret word in " + userAttempts + " tentativi!");
                                 connectedUser.addWin(userAttempts); // aggiorno statistiche dell'utente con una vittoria
-                                WordleServer.updateUser(connectedUser); // aggiorno utente nella struttura degli utenti memorizzati
+                                WordleServerMain.updateUser(connectedUser); // aggiorno utente nella struttura degli utenti memorizzati
                                 has_won = true;
                                 is_playing = false; // non gioca più, la partita è finita (è importante sapere se al momento del logout la partita è finita o è in corso, nell'ultimo caso è contata come persa)
                             } else {
@@ -130,7 +130,7 @@ public class ClientHandler implements Runnable {
                                 if (userAttempts == MAX_ATTEMPTS) { // se tentativi finiti per indovinare la secret word 
                                     out.println("LOSE: " + clue + ", la secret word era " + secretWord + ". Grazie per aver giocato!");
                                     connectedUser.addLose(); // aggiorno statistiche dell'utente con una sconfitta
-                                    WordleServer.updateUser(connectedUser); // aggiorno utente nella struttura degli utenti memorizzati
+                                    WordleServerMain.updateUser(connectedUser); // aggiorno utente nella struttura degli utenti memorizzati
                                     is_playing = false; // non gioca più, la partita è finita
                                 } else {
                                     // tentativi non finiti per indovinare la secret word, invio dei suggerimenti sulla base della parola fornita
@@ -141,7 +141,7 @@ public class ClientHandler implements Runnable {
                         break;
                         
                     case "SENDMESTATISTICS": 
-                        outcome = WordleServer.getUser(connectedUser.getUsername()).statistics(); // recupero le statistiche dell'utente dalla struttura degli utenti memorizzati
+                        outcome = WordleServerMain.getUser(connectedUser.getUsername()).statistics(); // recupero le statistiche dell'utente dalla struttura degli utenti memorizzati
                         out.println(outcome); // invio le statistiche all'utente
                         break;
                 }

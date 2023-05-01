@@ -94,7 +94,7 @@ public class User {
         
         double win_percentage = ((double) total_games_won / total_played_games) * 100;
         return "Partite giocate: " + total_played_games + "-" +
-               "Partite vinte: " + total_played_games + "-" + 
+               "Partite vinte: " + total_games_won + "-" + 
                "Percentuale partite vinte: " + win_percentage + "%-" +
                "Streak di vincite corrente: " + current_winstreak + "-" +
                "Streak di vincite più lunga: " + longest_winstreak + "-" +

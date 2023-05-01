@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Leonardo Arditti 23/4/2023
  */
-public class WordleServer {
+public class WordleServerMain {
 
     private static int connectedUsers = 0; // per scopi di stampa sulla CLI
 
@@ -347,7 +347,7 @@ public class WordleServer {
         }
 
         try (ServerSocket welcomeSocket = new ServerSocket(PORT)) { // Definisco una socket per accettare le richieste di connessione da parte dei client
-            // welcomeSocket.setSoTimeout(TIMEOUT);
+            // welcomeSocket.setSoTimeout(TIMEOUT); // tempo di timeout, dopo cui verrà sollevata una SocketTimeoutException
             System.out.println("[DEBUG] Server attivo, ascolto sulla porta " + PORT);
             ExecutorService pool = Executors.newCachedThreadPool();
 
@@ -423,8 +423,7 @@ public class WordleServer {
             while (true) { // gestisco la comunicazione con un client grazie alla connection socket restituita dalla accept
                 pool.execute(new ClientHandler(welcomeSocket.accept(), connectedUsers++));
             }
-        } catch (SocketException se) {
-        } catch (IOException ex) {
+        } catch (SocketException se) { } catch (IOException ex) {
             System.err.printf("[SERVER] Errore: %s\n", ex.getMessage());
             ex.printStackTrace();
         }
