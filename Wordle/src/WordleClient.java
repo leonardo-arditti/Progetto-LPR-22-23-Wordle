@@ -368,6 +368,11 @@ public class WordleClient {
      *                  Se true, il metodo non manderà la richiesta di condividere i risultati del gioco e genererà un messaggio di errore
      */
     public static void share(boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+        
         if (!currentUser.isLoggedIn()) {
             System.err.println("E' possibile richiedere la condivisione dei tentativi effettuati per l'ultima partita solo una volta loggati.");
             return;
@@ -465,12 +470,17 @@ public class WordleClient {
      *                  Se true, il metodo non manderà la richiesta di ricevere le notifiche delle partite degli altri utenti e genererà un messaggio di errore
      */
     public static void showMeSharing(boolean malformed) {
+        if (malformed) {
+            System.err.println("Comando malformato, riprovare.");
+            return;
+        }
+        
         if (!currentUser.isLoggedIn()) {
             System.err.println("E' possibile vedere le notifiche inviate dal server riguardo le partite degli altri utenti solo una volta loggati.");
             return;
         }
 
-        if (notifications.size() == 0) {
+        if (notifications.isEmpty()) {
             System.err.println("Nessuna notifica da visualizzare riguardo alle partite degli altri utenti.");
             return;
         }

@@ -86,6 +86,7 @@ public class User {
     public String statistics() {
         // Vanno mostrate le seguenti statistiche:
         // - numero partite giocate
+        // - numero partite vinte
         // - percentuale di partite vinte
         // - lunghezza dell’ultima sequenza continua (streak) di vincite
         // - lunghezza della massima sequenza continua (streak) di vincite
@@ -130,7 +131,7 @@ public class User {
         guess_distribution.add(numTries);
     }
     
-    public void addLose(int numTries) {
+    public void addLose() {
         current_winstreak = 0;
         
         total_played_games++;

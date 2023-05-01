@@ -87,7 +87,7 @@ public class ClientHandler implements Runnable {
                                 // Se decido di fare logout una volta iniziata una partita allora la partita non conclusa è considerata persa.
                                 // L'esito negativo della partita è trasparente all'utente, 
                                 // ovvero non è mandato un messaggio di notifica per la terminazione prematura della partita ma solo che il logout è avvenuto con successo
-                                connectedUser.addLose(userAttempts); // Aggiungo una sconfitta all'utente
+                                connectedUser.addLose(); // Aggiungo una sconfitta all'utente
                                 WordleServer.updateUser(connectedUser); // Aggiorno l'utente negli utenti memorizzati
                             }
                         }
@@ -129,7 +129,7 @@ public class ClientHandler implements Runnable {
                                 
                                 if (userAttempts == MAX_ATTEMPTS) { // se tentativi finiti per indovinare la secret word 
                                     out.println("LOSE: " + clue + ", la secret word era " + secretWord + ". Grazie per aver giocato!");
-                                    connectedUser.addLose(userAttempts); // aggiorno statistiche dell'utente con una sconfitta
+                                    connectedUser.addLose(); // aggiorno statistiche dell'utente con una sconfitta
                                     WordleServer.updateUser(connectedUser); // aggiorno utente nella struttura degli utenti memorizzati
                                     is_playing = false; // non gioca più, la partita è finita
                                 } else {
@@ -168,7 +168,7 @@ public class ClientHandler implements Runnable {
          * GRIGIO = X, VERDE = +, GIALLO = ?
          * GRIGIO : lettera non appartenente alla parola segreta
          * VERDE  : lettera appartenente alla parola segreta e in posizione corretta
-         * GRIGIO : lettera appartenente alla parola segreta ma in posizione sbagliata
+         * GIALLO : lettera appartenente alla parola segreta ma in posizione sbagliata
          */
 
         char[] guessWord_CA = guessWord.toCharArray(); // converto guessWord in array di char per semplificarne la manipolazione..
