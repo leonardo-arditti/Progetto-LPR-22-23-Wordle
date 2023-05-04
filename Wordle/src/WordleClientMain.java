@@ -47,7 +47,6 @@ public class WordleClientMain {
     private static User currentUser = new User(); // inizialmente un placeholder (utente fittizio), poi sostituito dall'utente corrispondente a quello specificato al login
     private static boolean logged_out = false; // variabile aggiornata al logout, comporta la terminazione del programma
     
-    // da valutare rimozione
     private static boolean game_started = false; // per impedire che si possa invocare sendWord senza aver invocato prima playWORDLE()
     private static boolean game_finished = false; // per consentire la condivisione dei tentativi per l'ultima partita giocata solo a partita finita
     private static boolean has_won = false; // variabile per il messaggio da condividere al gruppo multicast che verrà mandato al server, che deve includere oltre ai tentativi se l'utente ha vinto o meno

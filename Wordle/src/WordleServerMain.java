@@ -152,7 +152,7 @@ public class WordleServerMain {
             User user = entry.getValue();
 
             user.setHas_not_played(); // imposto has_played = false per tutti gli utenti
-            users.replace(user.getUsername(), user); // rimpiazzo gli utenti nella mappa
+            updateUser(user); // rimpiazzo gli utenti nella mappa
         }
 
         secretWord = random_word; // aggiorno la parola segreta con quella appena estratta
@@ -254,7 +254,7 @@ public class WordleServerMain {
             int total_users = 0; // per scopi di stampa sulla CLI
             writer.setIndent("\t"); // per avere indentazione nel file JSON prodotto
             writer.beginArray(); // [
-            for (String username : users.keySet()) {
+            for (String username : users.keySet()) { // per tutte le chiavi della mappa users
                 User userObj = users.get(username);
 
                 writer.beginObject(); // {
